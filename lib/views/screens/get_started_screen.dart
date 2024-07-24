@@ -56,7 +56,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   .map(
                     (image) => Image.asset(
                       image,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                     ),
                   )
                   .toList(),
