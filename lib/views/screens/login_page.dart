@@ -1,6 +1,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:wahid_uber_app/views/screens/auth/signIn_page.dart';
+import 'package:wahid_uber_app/views/screens/auth/sign_up_page.dart';
 
 class LogInPage extends StatelessWidget {
   const LogInPage({super.key});
@@ -42,12 +44,12 @@ class LogInPage extends StatelessWidget {
               width: 220,
               child: OutlinedButton(
                 onPressed: () {
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(
-                  //     builder: (context) => SignInPage(),
-                  //   ),
-                  // );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SignInPage(),
+                    ),
+                  );
                 },
                 style: OutlinedButton.styleFrom(
                   backgroundColor: Colors.white,
@@ -89,12 +91,12 @@ class LogInPage extends StatelessWidget {
               width: 220,
               child: TextButton(
                 onPressed: () {
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(
-                  //     builder: (context) => SignUpPage(),
-                  //   ),
-                  // );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SignUpPage(),
+                    ),
+                  );
                 },
                 style: TextButton.styleFrom(
                   backgroundColor: const Color(0xFF336699),
