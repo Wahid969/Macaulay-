@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "107113386007",
+    "project_id": "uber-app-439a2",
+    "storage_bucket": "uber-app-439a2.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:107113386007:android:b6faa5a9aa0f3b41318c52",
+        "android_client_info": {
+          "package_name": "com.maccaulay.wahid_uber_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_SdqRX8aYQ6LgUneHgQ4Nudw2EIIE-uc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

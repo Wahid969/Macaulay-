@@ -1,8 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:wahid_uber_app/views/screens/auth/signIn_page.dart';
-import 'package:wahid_uber_app/views/screens/auth/sign_up_page.dart';
+import 'package:wahid_uber_app/views/screens/auth/register_screen.dart';
 
 class LogInPage extends StatelessWidget {
   const LogInPage({super.key});
@@ -47,7 +46,7 @@ class LogInPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => SignInPage(),
+                      builder: (context) => const  RegisterScreen(),
                     ),
                   );
                 },
@@ -94,7 +93,7 @@ class LogInPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => SignUpPage(),
+                      builder: (context) => const  RegisterScreen(),
                     ),
                   );
                 },
