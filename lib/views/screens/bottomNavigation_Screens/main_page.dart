@@ -1,19 +1,24 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_geofire/flutter_geofire.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:wahid_uber_app/controllers/Places_controller.dart';
 import 'package:wahid_uber_app/controllers/auth_controller.dart';
+import 'package:wahid_uber_app/controllers/firehelperController.dart';
 import 'package:wahid_uber_app/controllers/location_controller.dart';
 import 'package:outline_material_icons/outline_material_icons.dart';
 import 'package:wahid_uber_app/global_variables.dart';
 import 'package:wahid_uber_app/models/direction.dart';
+import 'package:wahid_uber_app/models/nearbydriver.dart';
 import 'package:wahid_uber_app/provider/app_data.dart';
+import 'package:wahid_uber_app/provider/geo_provider.dart';
 import 'package:wahid_uber_app/views/screens/inner_screens/search_screen.dart';
 
 class MainPage extends StatefulWidget {
@@ -23,16 +28,17 @@ class MainPage extends StatefulWidget {
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
   List<LatLng> polylineCoordinates = [];
   double searchDetailSheet = (Platform.isAndroid) ? 300 : 275;
   double rideDetailSheet = 0;
   final Set<Polyline> _polyLines = {};
-  final Set<Marker> _markers = {};
+  Set<Marker> _markers = {};
   final Set<Circle> _circle = {};
   bool drawerCanOpen = true;
   double requestSheetHeight = 0;
+  final List<String> keysRetrieved = []; // or Set<String> if you prefer
 
   double bottomPadding = 0;
   final LocationController _locationController = LocationController();
@@ -48,6 +54,8 @@ class _MainPageState extends State<MainPage> {
   Direction? tripDirectionDetails;
 
   DatabaseReference? rideRef;
+
+  bool nearByDriverKeyLoaded = false;
 
   void showDetailsheet() async {
     await getDirection();
@@ -71,15 +79,57 @@ class _MainPageState extends State<MainPage> {
     createRideRequest();
   }
 
+  BitmapDescriptor? nearByCar;
+  void createMarker() {
+    if (nearByCar == null) {
+      BitmapDescriptor.fromAssetImage(ImageConfiguration(size: Size(2, 2)),
+              'assets/icons/car_android.png')
+          .then((icon) {
+        setState(() {
+          nearByCar = icon;
+        });
+      });
+    }
+  }
+
+  bool _hasStartedGeofireListener = false;
+
   @override
   void initState() {
     super.initState();
     AuthController.getCurrentUserInfo();
+    WidgetsBinding.instance.addObserver(this); // Add observer for app lifecycle
+    _initializeGeofireListener();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initializeGeofireListener();
+  }
+
+  void _initializeGeofireListener() {
+    final geofireProvider =
+        Provider.of<GeofireProvider>(context, listen: false);
+    final userLocation = _locationController.userCurrentPosition;
+
+    if (userLocation != null && !_hasStartedGeofireListener) {
+      startGeofireListener();
+      _hasStartedGeofireListener = true; // Ensure listener is only started once
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _initializeGeofireListener(); // Reinitialize on resume
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     // final user = Provider.of<UserProvider>(context).user;
+    createMarker();
     return Scaffold(
       key: scaffoldKey,
       drawer: Container(
@@ -202,12 +252,15 @@ class _MainPageState extends State<MainPage> {
             mapType: MapType.terrain,
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
-            onMapCreated: (GoogleMapController mapController) {
+            onMapCreated: (GoogleMapController mapController) async {
               _mapController = mapController;
               _controller.complete(_mapController);
               _locationController.setGoogleMapController(_mapController!);
-              _locationController.getCurrentUserLocation(context);
 
+              // Ensure getCurrentUserLocation completes before starting GeoFire listener
+              await _locationController.getCurrentUserLocation(context);
+
+              startGeofireListener();
               setState(() {
                 bottomPadding = 299;
               });
@@ -878,5 +931,92 @@ class _MainPageState extends State<MainPage> {
 
   void cancelRequest() async {
     await rideRef!.remove();
+  }
+
+  void startGeofireListener() async {
+    Platform.isAndroid
+        ? await Firebase.initializeApp(
+            options: const FirebaseOptions(
+              apiKey: "AIzaSyB_SdqRX8aYQ6LgUneHgQ4Nudw2EIIE-uc",
+              appId: '1:107113386007:android:b6faa5a9aa0f3b41318c52',
+              messagingSenderId: '107113386007',
+              projectId: 'uber-app-439a2',
+              storageBucket: "uber-app-439a2.appspot.com",
+            ),
+          )
+        : await Firebase.initializeApp();
+    Geofire.initialize('driverAvailable');
+    print('GeoFire initialized with collection: driverAvailable');
+    Geofire.queryAtLocation(_locationController.userCurrentPosition!.latitude,
+            _locationController.userCurrentPosition!.longitude, 20)
+        ?.listen((map) {
+      print('Listener triggered');
+      if (map != null) {
+        print('Entering data');
+        print(map);
+        var callBack = map['callBack'];
+
+        switch (callBack) {
+          case Geofire.onKeyEntered:
+            print('Key entered');
+            NearByDriver nearbyDriver = NearByDriver();
+            nearbyDriver.key = map['key'];
+            nearbyDriver.latitude = map['latitude'];
+            nearbyDriver.longitude = map['longitude'];
+            Firehelpercontroller.nearbyDriverList.add(nearbyDriver);
+            if (nearByDriverKeyLoaded) {
+              updateDriverOnMap();
+            }
+            break;
+
+          case Geofire.onKeyExited:
+            print('Key exited');
+
+            Firehelpercontroller.removeFromList(map['key']);
+            updateDriverOnMap();
+            break;
+
+          case Geofire.onKeyMoved:
+            print('Key moved');
+            NearByDriver nearbyDriver = NearByDriver();
+            nearbyDriver.key = map['key'];
+            nearbyDriver.latitude = map['latitude'];
+            nearbyDriver.longitude = map['longitude'];
+            Firehelpercontroller.updateNearByLocation(nearbyDriver);
+            updateDriverOnMap();
+            break;
+
+          case Geofire.onGeoQueryReady:
+            nearByDriverKeyLoaded = true;
+            updateDriverOnMap();
+            break;
+        }
+
+        setState(() {});
+      } else {
+        print('Data not received');
+      }
+    });
+  }
+
+  void updateDriverOnMap() {
+    setState(() {
+      _markers.clear();
+    });
+
+    Set<Marker> tempMarkers = Set<Marker>();
+    for (NearByDriver driver in Firehelpercontroller.nearbyDriverList) {
+      LatLng driverPosition = LatLng(driver.latitude!, driver.longitude!);
+      Marker thisMarker = Marker(
+        markerId: MarkerId("${driver.key}"),
+        position: driverPosition,
+        icon: nearByCar!,
+        rotation: PlacesController.generateRandomNumber(360),
+      );
+      tempMarkers.add(thisMarker);
+    }
+    setState(() {
+      _markers = tempMarkers;
+    });
   }
 }

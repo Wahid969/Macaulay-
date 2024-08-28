@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
@@ -92,39 +94,43 @@ class PlacesController {
     return direction;
   }
 
-static int estimatedFares(Direction details) {
-  int distanceKm = (details.distanceValue! / 1000).truncate();
+  static int estimatedFares(Direction details) {
+    int distanceKm = (details.distanceValue! / 1000).truncate();
 
-  int fare;
-  if (distanceKm >= 1 && distanceKm < 2) {
-    fare = 5; // LYD
-  } else if (distanceKm >= 2 && distanceKm < 10) {
-    fare = 10; // LYD
-  } else if (distanceKm >= 10 && distanceKm < 15) {
-    fare = 20; // LYD
-  } else if (distanceKm >= 15 && distanceKm < 20) {
-    fare = 25; // LYD
-  } else if (distanceKm >= 20 && distanceKm < 25) {
-    fare = 30; // LYD
-  } else if (distanceKm >= 25 && distanceKm < 30) {
-    fare = 35; // LYD
-  } else if (distanceKm >= 30 && distanceKm < 35) {
-    fare = 40; // LYD
-  } else if (distanceKm >= 35 && distanceKm < 40) {
-    fare = 45; // LYD
-  } else if (distanceKm >= 40 && distanceKm < 45) {
-    fare = 50; // LYD
-  } else if (distanceKm >= 45 && distanceKm < 55) {
-    fare = 55; // LYD
-  } else if (distanceKm >= 55 && distanceKm <= 60) {
-    fare = 60; // LYD
-  } else {
-    fare = 0; // Default fare or handle other cases if needed
+    int fare;
+    if (distanceKm >= 1 && distanceKm < 2) {
+      fare = 5; // LYD
+    } else if (distanceKm >= 2 && distanceKm < 10) {
+      fare = 10; // LYD
+    } else if (distanceKm >= 10 && distanceKm < 15) {
+      fare = 20; // LYD
+    } else if (distanceKm >= 15 && distanceKm < 20) {
+      fare = 25; // LYD
+    } else if (distanceKm >= 20 && distanceKm < 25) {
+      fare = 30; // LYD
+    } else if (distanceKm >= 25 && distanceKm < 30) {
+      fare = 35; // LYD
+    } else if (distanceKm >= 30 && distanceKm < 35) {
+      fare = 40; // LYD
+    } else if (distanceKm >= 35 && distanceKm < 40) {
+      fare = 45; // LYD
+    } else if (distanceKm >= 40 && distanceKm < 45) {
+      fare = 50; // LYD
+    } else if (distanceKm >= 45 && distanceKm < 55) {
+      fare = 55; // LYD
+    } else if (distanceKm >= 55 && distanceKm <= 60) {
+      fare = 60; // LYD
+    } else {
+      fare = 0; // Default fare or handle other cases if needed
+    }
+
+    return fare;
   }
 
-  return fare;
-}
+  static double generateRandomNumber(int max) {
+    final  randomeGenerator = Random();
+    int radint = randomeGenerator.nextInt(max);
 
-
-
+    return radint.toDouble();
+  }
 }

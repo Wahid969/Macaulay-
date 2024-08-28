@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:wahid_uber_app/driver/views/auth/vehicle_details_screen.dart';
 import 'package:wahid_uber_app/driver/views/screens/driver_main_screen.dart';
 import 'package:wahid_uber_app/global_variables.dart';
-import 'package:wahid_uber_app/views/screens/bottomNavigation_Screens/main_page.dart';
 
 class DriverAuthController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -62,7 +61,7 @@ class DriverAuthController {
     await driverRef.set(map);
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const DriverMainScreen()),
+        MaterialPageRoute(builder: (context) =>  DriverMainScreen()),
         (route) => false,
       );
   }
@@ -81,7 +80,7 @@ class DriverAuthController {
       // Optionally, navigate to a different screen or update the UI
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const MainPage()),
+        MaterialPageRoute(builder: (context) =>  DriverMainScreen()),
         (route) => false,
       );
     } catch (e) {

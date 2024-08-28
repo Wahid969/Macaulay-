@@ -5,9 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:wahid_uber_app/driver/views/screens/driver_main_screen.dart';
 import 'package:wahid_uber_app/provider/app_data.dart';
+import 'package:wahid_uber_app/provider/geo_provider.dart';
 import 'package:wahid_uber_app/provider/user_provider.dart';
-import 'package:wahid_uber_app/views/screens/auth/register_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,11 @@ void main() async {
       create: (_) {
         return UserProvider();
       },
+    ),
+    ChangeNotifierProvider(
+      create: (_) {
+        return GeofireProvider();
+      },
     )
   ], child: const MyApp()));
 }
@@ -64,7 +70,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const RegisterScreen(),
+      home:  DriverMainScreen(),
     );
   }
 }
