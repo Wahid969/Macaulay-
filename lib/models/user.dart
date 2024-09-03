@@ -1,4 +1,3 @@
-// user_model.dart
 import 'dart:convert';
 
 class User {
@@ -8,6 +7,7 @@ class User {
   final String phone;
   final String password;
   final String token;
+   String userType; // Added userType field
 
   User({
     required this.id,
@@ -16,6 +16,7 @@ class User {
     required this.phone,
     required this.password,
     required this.token,
+    this.userType = 'normal', // Default to 'normal' if not provided
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +27,7 @@ class User {
       'phone': phone,
       'password': password,
       'token': token,
+      'userType': userType, // Include userType in the map
     };
   }
 
@@ -37,6 +39,7 @@ class User {
       phone: map['phone'] as String? ?? "",
       password: map['password'] as String? ?? "",
       token: map['token'] as String? ?? "",
+      userType: map['userType'] as String? ?? 'normal', // Default to 'normal'
     );
   }
 

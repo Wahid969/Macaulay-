@@ -12,38 +12,39 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
   final AuthController _authController = AuthController();
   bool isLoading = false;
   late String email;
-
   late String fullName;
-
   late String password;
+  String userType = 'normal'; // Default user type to 'normal'
 
   registerUser() async {
-    setState(() {
-      isLoading = true;
-    });
-    await _authController
-        .signUpUsers(
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        isLoading = true;
+      });
+
+      await _authController
+          .signUpUsers(
             context: context,
             fullName: fullName,
             email: email,
-            password: password)
-        .whenComplete(() {
-      setState(() {
-        isLoading = false;
+            password: password,
+            userType: userType, // Pass userType to the controller
+          )
+          .whenComplete(() {
+        setState(() {
+          isLoading = false;
+        });
       });
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white.withOpacity(
-        0.95,
-      ),
+      backgroundColor: Colors.white.withOpacity(0.95),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Center(
@@ -92,37 +93,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                     validator: (value) {
                       if (value!.isEmpty) {
-                        return 'enter your email';
-                      } else {
-                        return null;
+                        return 'Enter your email';
                       }
+                      return null;
                     },
                     decoration: InputDecoration(
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(9),
+                      fillColor: Colors.white,
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      labelText: 'Enter your email',
+                      labelStyle: GoogleFonts.getFont(
+                        "Nunito Sans",
+                        fontSize: 14,
+                        letterSpacing: 0.1,
+                      ),
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Image.asset(
+                          'assets/icons/email.png',
+                          width: 20,
+                          height: 20,
                         ),
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        labelText: 'enter your email',
-                        labelStyle: GoogleFonts.getFont(
-                          "Nunito Sans",
-                          fontSize: 14,
-                          letterSpacing: 0.1,
-                        ),
-                        prefixIcon: Padding(
-                          padding: const EdgeInsets.all(10.0),
-                          child: Image.asset(
-                            'assets/icons/email.png',
-                            width: 20,
-                            height: 20,
-                          ),
-                        )),
+                      ),
+                    ),
                   ),
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 20),
                   Align(
                     alignment: Alignment.topLeft,
                     child: Text(
@@ -140,47 +139,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                     validator: (value) {
                       if (value!.isEmpty) {
-                        return "enter your full name";
-                      } else {
-                        return null;
+                        return "Enter your full name";
                       }
-                    },
-                    decoration: InputDecoration(
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        labelText: 'enter your full name',
-                        labelStyle: GoogleFonts.getFont(
-                          "Nunito Sans",
-                          fontSize: 14,
-                          letterSpacing: 0.1,
-                        ),
-                        prefixIcon: Padding(
-                          padding: const EdgeInsets.all(10.0),
-                          child: Image.asset(
-                            'assets/icons/user.jpeg',
-                            width: 20,
-                            height: 20,
-                          ),
-                        )),
-                  ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  TextFormField(
-                    onChanged: (value) {
-                      password = value;
-                    },
-                    validator: (value) {
-                      if (value!.isEmpty) {
-                        return "enter your password";
-                      } else {
-                        return null;
-                      }
+                      return null;
                     },
                     decoration: InputDecoration(
                       fillColor: Colors.white,
@@ -190,7 +151,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       focusedBorder: InputBorder.none,
                       enabledBorder: InputBorder.none,
-                      labelText: 'enter your password',
+                      labelText: 'Enter your full name',
+                      labelStyle: GoogleFonts.getFont(
+                        "Nunito Sans",
+                        fontSize: 14,
+                        letterSpacing: 0.1,
+                      ),
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Image.asset(
+                          'assets/icons/user.jpeg',
+                          width: 20,
+                          height: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Text(
+                      'Password',
+                      style: GoogleFonts.getFont(
+                        'Nunito Sans',
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                  TextFormField(
+                    onChanged: (value) {
+                      password = value;
+                    },
+                    validator: (value) {
+                      if (value!.isEmpty) {
+                        return "Enter your password";
+                      }
+                      return null;
+                    },
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      fillColor: Colors.white,
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      labelText: 'Enter your password',
                       labelStyle: GoogleFonts.getFont(
                         "Nunito Sans",
                         fontSize: 14,
@@ -204,18 +212,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           height: 20,
                         ),
                       ),
-                      suffixIcon: Icon(Icons.visibility),
                     ),
                   ),
-                  const SizedBox(
-                    height: 20,
+                  const SizedBox(height: 20),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Text(
+                      'Register as',
+                      style: GoogleFonts.getFont(
+                        'Nunito Sans',
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
                   ),
-                  InkWell(
-                    onTap: () {
-                      if (_formKey.currentState!.validate()) {
-                        registerUser();
-                      }
+                  DropdownButtonFormField<String>(
+                    value: userType,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'normal',
+                        child: Text('Normal User'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'driver',
+                        child: Text('Driver'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        userType = value!;
+                      });
                     },
+                    decoration: InputDecoration(
+                      fillColor: Colors.white,
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  InkWell(
+                    onTap: registerUser,
                     child: Container(
                       width: 319,
                       height: 50,
@@ -260,9 +300,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 clipBehavior: Clip.antiAlias,
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(
-                                    3,
-                                  ),
+                                  borderRadius: BorderRadius.circular(3),
                                 ),
                               ),
                             ),
@@ -277,32 +315,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 height: 20,
                                 clipBehavior: Clip.antiAlias,
                                 decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10)),
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             ),
                           ),
                           Center(
-                              child: isLoading
-                                  ? const CircularProgressIndicator(
+                            child: isLoading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : Text(
+                                    'Sign Up',
+                                    style: GoogleFonts.getFont(
+                                      'Lato',
                                       color: Colors.white,
-                                    )
-                                  : Text(
-                                      'Sign Up',
-                                      style: GoogleFonts.getFont(
-                                        'Lato',
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ))
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -310,26 +348,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         'Already have an Account?',
                         style: GoogleFonts.roboto(
                           fontWeight: FontWeight.w500,
-                          letterSpacing: 1,
+                          letterSpacing: 0.1,
+                          color: Colors.black54,
                         ),
                       ),
-                      InkWell(
-                        onTap: () {
-                          Navigator.push(context,
-                              MaterialPageRoute(builder: (context) {
-                            return const LoginScreen();
-                          }));
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
+                          );
                         },
                         child: Text(
-                          'Sign In',
+                          'Login',
                           style: GoogleFonts.roboto(
-                            color: const Color(0xFF103DE5),
+                            color: Colors.blue,
                             fontWeight: FontWeight.bold,
+                            letterSpacing: 0.1,
                           ),
                         ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),

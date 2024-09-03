@@ -10,8 +10,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:wahid_uber_app/controllers/Places_controller.dart';
-import 'package:wahid_uber_app/controllers/auth_controller.dart';
 import 'package:outline_material_icons/outline_material_icons.dart';
+import 'package:wahid_uber_app/controllers/auth_controller.dart';
 import 'package:wahid_uber_app/controllers/push_notification_controller.dart';
 import 'package:wahid_uber_app/driver/controllers/manage_driver_methods.dart';
 import 'package:wahid_uber_app/driver/views/screens/driver_main_screen.dart';
@@ -115,7 +115,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    AuthController.getCurrentUserInfo();
+    // AuthController.getCurrentUserInfo();
     _getCurrentLocation();
   }
 
@@ -307,7 +307,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     });
   }
 
-  bool isDriverMode = false;
+  final AuthController _authController = AuthController();
+  bool isDriverMode =
+      userInfo?.userType == 'driver'; // Initial mode based on current user type
 
   @override
   Widget build(BuildContext context) {
@@ -430,7 +432,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                onTap: () {
+                onTap: () async {
+                  // Call the switchUserType method from AuthController
+                  await _authController.switchUserType(context);
+
+                  // Update the mode in the UI
                   setState(() {
                     isDriverMode = !isDriverMode;
                   });
@@ -442,21 +448,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         isDriverMode
                             ? 'Switched to Driver Mode'
                             : 'Switched to User Mode',
-                        style: TextStyle(fontSize: 16.0),
+                        style: const TextStyle(fontSize: 16.0),
                       ),
                       backgroundColor: Colors.blue,
                     ),
-                  );
-
-                  // Optionally, navigate to the relevant screen
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => isDriverMode
-                          ? DriverMainScreen() // Navigate to driver main screen
-                          : MainPage(), // Navigate to user main screen (create this screen)
-                    ),
-                    (route) => false,
                   );
                 },
               ),

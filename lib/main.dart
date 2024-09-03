@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,8 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:wahid_uber_app/provider/app_data.dart';
 import 'package:wahid_uber_app/provider/user_provider.dart';
-import 'package:wahid_uber_app/views/screens/auth/login_screen.dart';
-import 'package:wahid_uber_app/views/screens/bottomNavigation_Screens/main_page.dart';
+import 'package:wahid_uber_app/views/screens/auth/register_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,9 +64,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: FirebaseAuth.instance.currentUser != null
-          ? const MainPage()
-          : const LoginScreen(),
+      home: 
+           const RegisterScreen(),
     );
   }
 }
