@@ -34,6 +34,18 @@ class DriverAuthController {
 
       currentDriverUser = credential;
 
+      // Success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🚗 Welcome, $fullName! Let\'s get your vehicle details set up!',
+            style: TextStyle(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigate to the Vehicle Details screen
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const VehicleDetailsScreen()),
@@ -41,29 +53,56 @@ class DriverAuthController {
       );
     } catch (e) {
       print("Sign-up error: $e");
+
+      // Error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🚨 Oops! Something went wrong during sign-up. Please try again.',
+            style: TextStyle(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  void updateProfile(
-      {required String carColor,
-      required String carModel,
-      required String vehicleNumber,required BuildContext context}) async {
+  void updateProfile({
+    required String carColor,
+    required String carModel,
+    required String vehicleNumber,
+    required BuildContext context,
+  }) async {
     String id = currentDriverUser!.user!.uid;
 
     DatabaseReference driverRef =
         FirebaseDatabase.instance.ref().child('drivers/$id/vehicle_info');
 
-    Map map = {
+    Map<String, String> map = {
       'carColor': carColor,
       'carModel': carModel,
       'vehicleNumber': vehicleNumber,
     };
+
     await driverRef.set(map);
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) =>  DriverMainScreen()),
-        (route) => false,
-      );
+
+    // Success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '🚙 Your vehicle information has been updated! Ready to hit the road?',
+          style: TextStyle(fontSize: 16.0),
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    // Navigate to the Driver Main Screen
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => DriverMainScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> signInUsers({
@@ -72,19 +111,44 @@ class DriverAuthController {
     required String password,
   }) async {
     try {
-      await _auth.signInWithEmailAndPassword(
+      UserCredential credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Optionally, navigate to a different screen or update the UI
+      // Set the currentDriverUser after login
+      currentDriverUser = credential;
+
+      // Welcome back message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '👋 Welcome back, driver! Let\'s get you on the road!',
+            style: TextStyle(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      // Navigate to the Driver Main Screen
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) =>  DriverMainScreen()),
+        MaterialPageRoute(builder: (context) => DriverMainScreen()),
         (route) => false,
       );
     } catch (e) {
       print("Sign-in error: $e");
+
+      // Error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🚨 Uh-oh! There was a problem signing you in. Please check your credentials and try again.',
+            style: TextStyle(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

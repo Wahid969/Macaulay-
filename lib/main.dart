@@ -1,20 +1,25 @@
 import 'dart:io';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
-import 'package:wahid_uber_app/driver/views/screens/driver_main_screen.dart';
 import 'package:wahid_uber_app/provider/app_data.dart';
-import 'package:wahid_uber_app/provider/geo_provider.dart';
 import 'package:wahid_uber_app/provider/user_provider.dart';
+import 'package:wahid_uber_app/views/screens/auth/login_screen.dart';
+import 'package:wahid_uber_app/views/screens/bottomNavigation_Screens/main_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Permission.locationWhenInUse.isDenied.then((value) {
     if (value == true) {
       Permission.locationWhenInUse.request();
+    }
+  });
+  await Permission.notification.isDenied.then((value) {
+    if (value == true) {
+      Permission.notification.request();
     }
   });
   Platform.isAndroid
@@ -40,11 +45,6 @@ void main() async {
         return UserProvider();
       },
     ),
-    ChangeNotifierProvider(
-      create: (_) {
-        return GeofireProvider();
-      },
-    )
   ], child: const MyApp()));
 }
 
@@ -63,14 +63,12 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home:  DriverMainScreen(),
+      home: FirebaseAuth.instance.currentUser != null
+          ? const MainPage()
+          : const LoginScreen(),
     );
   }
 }

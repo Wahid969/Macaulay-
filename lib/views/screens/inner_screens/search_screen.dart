@@ -18,20 +18,26 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _pickUpController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
-  final FocusNode _destinationFocusNode = FocusNode(); // 1. FocusNode
+  final FocusNode _destinationFocusNode = FocusNode();
   List<Place> _placePredictionList = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _destinationFocusNode.requestFocus(); // 2. Request focus
+      _destinationFocusNode.requestFocus();
     });
+
+    // Initialize text controllers
+    final address = Provider.of<AppData>(context, listen: false).addressModel;
+    if (address != null) {
+      _pickUpController.text = address.placeName;
+    }
   }
 
   @override
   void dispose() {
-    _destinationFocusNode.dispose(); // 3. Dispose FocusNode
+    _destinationFocusNode.dispose();
     _pickUpController.dispose();
     _destinationController.dispose();
     super.dispose();
@@ -44,9 +50,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
       final response = await ManageHttpResponse.getRequest(url);
 
-      if (response == "Failed") {
-        return;
-      } else {
+      if (response != "Failed") {
         if (response['status'] == "OK") {
           var predictions = response['predictions'];
           List<Place> places =
@@ -60,15 +64,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void getPlaceDetails(String placeId) async {
-    // Show a loading dialog
     showDialog(
-      barrierDismissible: false, // Prevents the user from dismissing the dialog
+      barrierDismissible: false,
       context: context,
       builder: (context) {
         return const AlertDialog(
           content: Row(
             children: [
-              CircularProgressIndicator(), // Loading indicator
+              CircularProgressIndicator(),
               SizedBox(width: 20),
               Text("Loading..."),
             ],
@@ -77,17 +80,13 @@ class _SearchScreenState extends State<SearchScreen> {
       },
     );
 
-    // Perform the async operation
     String url =
         'https://maps.googleapis.com/maps/api/place/details/json?fields=name%2Cgeometry&place_id=$placeId&key=$mapKey';
     final response = await ManageHttpResponse.getRequest(url);
 
-    // Close the loading dialog after the operation is done
     Navigator.of(context).pop();
 
-    if (response == "Failed") {
-      return;
-    } else {
+    if (response != "Failed") {
       if (response['status'] == "OK") {
         var result = response['result'];
         if (result != null && result['geometry'] != null) {
@@ -100,11 +99,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
           Provider.of<AppData>(context, listen: false)
               .updateDestinationAddress(address);
-          print(address.placeName);
 
-          Navigator.pop(context ,'getDirection');
-        } else {
-          print("Geometry data is missing in the response.");
+          Navigator.pop(context, 'getDirection');
         }
       }
     }
@@ -112,8 +108,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String address = Provider.of<AppData>(context).addressModel!.placeName;
-    _pickUpController.text = address;
+    final appData = Provider.of<AppData>(context);
+    final address = appData.addressModel?.placeName ?? 'Pickup location';
 
     return Scaffold(
       body: Column(
@@ -136,7 +132,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 children: [
                   Stack(
                     children: [
-                      const Icon(Icons.arrow_back),
+                      IconButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.arrow_back),
+                      ),
                       Center(
                         child: Text(
                           'Your route',
@@ -163,7 +164,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             fillColor: Colors.grey,
                             border: InputBorder.none,
                             filled: true,
-                            hintText: 'Pickup location',
+                            hintText: address,
                             hintStyle: GoogleFonts.montserrat(
                               fontWeight: FontWeight.w500,
                             ),
@@ -185,7 +186,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             searchPlace(value);
                           },
                           controller: _destinationController,
-                          focusNode: _destinationFocusNode, // Attach FocusNode
+                          focusNode: _destinationFocusNode,
                           decoration: InputDecoration(
                             fillColor: Colors.grey,
                             border: InputBorder.none,
@@ -229,5 +230,3 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 }
-
-// Place Model

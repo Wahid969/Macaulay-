@@ -54,7 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     "Login Your Account",
                     style: GoogleFonts.montserrat(
-                    
                       color: const Color(0xFF0d120E),
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.2,
@@ -64,7 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     'To Explore the world exclusives',
                     style: GoogleFonts.montserrat(
-                  
                       color: const Color(0xFF0d120E),
                       fontSize: 14,
                       letterSpacing: 0.2,
@@ -244,8 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     )
                                   : Text(
                                       'Sign in',
-                                      style: GoogleFonts.getFont(
-                                        'Lato',
+                                      style: GoogleFonts.montserrat(
                                         color: Colors.white,
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -263,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         'Need an Account?',
-                        style: GoogleFonts.roboto(
+                        style: GoogleFonts.montserrat(
                           fontWeight: FontWeight.w500,
                           letterSpacing: 1,
                         ),
@@ -277,8 +274,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                         child: Text(
                           'Sign Up',
-                          style: GoogleFonts.roboto(
-                            color: Color(0xFF103DE5),
+                          style: GoogleFonts.montserrat(
+                            color: const Color(0xFF103DE5),
                             fontWeight: FontWeight.bold,
                           ),
                         ),

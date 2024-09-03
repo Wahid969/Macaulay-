@@ -1,24 +1,25 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_geofire/flutter_geofire.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:wahid_uber_app/controllers/Places_controller.dart';
 import 'package:wahid_uber_app/controllers/auth_controller.dart';
-import 'package:wahid_uber_app/controllers/firehelperController.dart';
-import 'package:wahid_uber_app/controllers/location_controller.dart';
 import 'package:outline_material_icons/outline_material_icons.dart';
+import 'package:wahid_uber_app/controllers/push_notification_controller.dart';
+import 'package:wahid_uber_app/driver/controllers/manage_driver_methods.dart';
+import 'package:wahid_uber_app/driver/views/screens/driver_main_screen.dart';
 import 'package:wahid_uber_app/global_variables.dart';
 import 'package:wahid_uber_app/models/direction.dart';
 import 'package:wahid_uber_app/models/nearbydriver.dart';
 import 'package:wahid_uber_app/provider/app_data.dart';
-import 'package:wahid_uber_app/provider/geo_provider.dart';
+import 'package:wahid_uber_app/views/screens/bottomNavigation_Screens/info_dialog.dart';
 import 'package:wahid_uber_app/views/screens/inner_screens/search_screen.dart';
 
 class MainPage extends StatefulWidget {
@@ -30,26 +31,49 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
-  List<LatLng> polylineCoordinates = [];
-  double searchDetailSheet = (Platform.isAndroid) ? 300 : 275;
-  double rideDetailSheet = 0;
-  final Set<Polyline> _polyLines = {};
-  Set<Marker> _markers = {};
-  final Set<Circle> _circle = {};
-  bool drawerCanOpen = true;
-  double requestSheetHeight = 0;
-  final List<String> keysRetrieved = []; // or Set<String> if you prefer
-
-  double bottomPadding = 0;
-  final LocationController _locationController = LocationController();
-  final Completer<GoogleMapController> _controller =
+  final Completer<GoogleMapController> _googleMapController =
       Completer<GoogleMapController>();
-  GoogleMapController? _mapController;
-
   static const CameraPosition _kGooglePlex = CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
     zoom: 14.4746,
   );
+
+  GoogleMapController? _controllerGoogleMap;
+  Position? currentPosition;
+  Future<void> _getCurrentLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.bestForNavigation);
+      currentPosition = position;
+
+      LatLng positionLatLng = LatLng(position.latitude, position.longitude);
+      CameraPosition cameraPosition =
+          CameraPosition(target: positionLatLng, zoom: 15);
+
+      _controllerGoogleMap
+          ?.animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
+
+      await _initializeGeoFireListener();
+      await PlacesController.findCordinateAddress(position, context);
+    } catch (e) {
+      print("Error fetching location: $e");
+    }
+  }
+
+  List<LatLng> polylineCoordinates = [];
+  double searchDetailSheet = (Platform.isAndroid) ? 300 : 275;
+  double rideDetailSheet = 0;
+  final Set<Polyline> _polyLines = {};
+  final Set<Marker> _markers = {};
+  final Set<Circle> _circle = {};
+  bool drawerCanOpen = true;
+  double requestSheetHeight = 0;
+  String appState = 'normal';
+  final List<String> keysRetrieved = []; // or Set<String> if you prefer
+
+  List<NearByDriver>? availableNearByDriverList = [];
+
+  double bottomPadding = 0;
 
   Direction? tripDirectionDetails;
 
@@ -68,6 +92,112 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   }
 
   //show requesting sheet
+
+  BitmapDescriptor? nearByCarIcon;
+  void createMarker() {
+    if (nearByCarIcon == null) {
+      BitmapDescriptor.fromAssetImage(
+              const ImageConfiguration(
+                size: Size(2, 2),
+              ),
+              'assets/icons/car_android.png')
+          .then((icon) {
+        setState(() {
+          nearByCarIcon = icon;
+          print("Marker icon created successfully"); // Debugging line
+        });
+      }).catchError((error) {
+        print("Error loading marker icon: $error");
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    AuthController.getCurrentUserInfo();
+    _getCurrentLocation();
+  }
+
+  void _addDriverToMap(Map<String, dynamic> driverEvent) {
+    NearByDriver nearByDriver = NearByDriver(
+      uidDriver: driverEvent['key'],
+      latitude: driverEvent['latitude'],
+      longitude: driverEvent['longitude'],
+    );
+
+    ManageDriverMethods.updateOnlineNearbyDriverLocation(nearByDriver);
+    ManageDriverMethods.nearByDriverList.add(nearByDriver);
+
+    if (nearByDriverKeyLoaded) {
+      _updateMarkersOnMap();
+    }
+  }
+
+  void _removeDriverFromMap(String driverKey) {
+    ManageDriverMethods.removeDriverFromList(driverKey);
+    _updateMarkersOnMap();
+  }
+
+  void _updateDriverLocation(Map<String, dynamic> driverEvent) {
+    NearByDriver nearByDriver = NearByDriver(
+      uidDriver: driverEvent['key'],
+      latitude: driverEvent['latitude'],
+      longitude: driverEvent['longitude'],
+    );
+
+    ManageDriverMethods.updateOnlineNearbyDriverLocation(nearByDriver);
+    _updateMarkersOnMap();
+  }
+
+  void _updateMarkersOnMap() {
+    setState(() {
+      _markers.clear();
+      for (var nearByDriver in ManageDriverMethods.nearByDriverList) {
+        LatLng driverPosition =
+            LatLng(nearByDriver.latitude!, nearByDriver.longitude!);
+        Marker driverMarker = Marker(
+          markerId: MarkerId(nearByDriver.uidDriver!),
+          icon:
+              nearByCarIcon ?? BitmapDescriptor.defaultMarker, // Fallback icon
+          position: driverPosition,
+        );
+        _markers.add(driverMarker);
+      }
+    });
+  }
+
+  Future<void> _initializeGeoFireListener() async {
+    if (currentPosition == null) return;
+
+    Geofire.initialize('onlineDrivers');
+    Geofire.queryAtLocation(
+            currentPosition!.latitude, currentPosition!.longitude, 80)!
+        .listen((driverEvent) {
+      if (driverEvent != null) {
+        var onlineDriverChild = driverEvent['callBack'];
+        // Casting the driverEvent map to the expected type
+        Map<String, dynamic> driverEventData =
+            Map<String, dynamic>.from(driverEvent);
+
+        switch (onlineDriverChild) {
+          case Geofire.onKeyEntered:
+            _addDriverToMap(driverEventData);
+            break;
+          case Geofire.onKeyExited:
+            _removeDriverFromMap(driverEventData['key']);
+            break;
+          case Geofire.onKeyMoved:
+            _updateDriverLocation(driverEventData);
+            break;
+          case Geofire.onGeoQueryReady:
+            nearByDriverKeyLoaded = true;
+            break;
+        }
+      }
+    });
+  }
+
   void showRequestingSheet() {
     setState(() {
       rideDetailSheet = 0;
@@ -76,59 +206,111 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       drawerCanOpen = true;
     });
 
-    createRideRequest();
+    createTripRequest();
   }
 
-  BitmapDescriptor? nearByCar;
-  void createMarker() {
-    if (nearByCar == null) {
-      BitmapDescriptor.fromAssetImage(ImageConfiguration(size: Size(2, 2)),
-              'assets/icons/car_android.png')
-          .then((icon) {
-        setState(() {
-          nearByCar = icon;
+  DatabaseReference? tripRef;
+
+  //create Ride Request
+  createTripRequest() {
+    tripRef = FirebaseDatabase.instance.ref().child('tripRequest').push();
+
+    var pickupLocation =
+        Provider.of<AppData>(context, listen: false).addressModel;
+    var destinationLocation =
+        Provider.of<AppData>(context, listen: false).destinationAddress;
+
+    Map pickupCoordinateMap = {
+      'latitude': pickupLocation!.latitude.toString(),
+      'longitude': pickupLocation.longitude.toString(),
+    };
+
+    Map destinationCoordinateMap = {
+      'latitude': destinationLocation!.latitude.toString(),
+      'longitude': destinationLocation.longitude.toString(),
+    };
+    Map driverCoordinate = {
+      'latitude': "",
+      'longitude': "",
+    };
+    Map dataMap = {
+      'dateTime': DateTime.now().toString(),
+      'fullName': userInfo!.fullName,
+      'email': userInfo!.email,
+      'userID': userInfo!.id,
+      'pickupLocation': pickupCoordinateMap,
+      'destinationLocation': destinationCoordinateMap,
+      'pickupAddress': pickupLocation.placeName,
+      'destinationAddress': destinationLocation.placeName,
+      'tripID': tripRef!.key,
+      'driverID': "wating",
+      'driverLocation': driverCoordinate,
+      'carDetails': '',
+      'driverName': '',
+      'driverPhone': '',
+      'fareAmount': '',
+      'status': 'new',
+    };
+
+    tripRef!.set(dataMap);
+  }
+
+  noDriverAvailable() {
+    showDialog(
+        barrierDismissible: false,
+        context: context,
+        builder: (BuildContext context) {
+          return const InfoDialog();
         });
-      });
+  }
+
+  searchDriver() {
+    if (availableNearByDriverList!.isEmpty) {
+      resetApp();
+      noDriverAvailable();
+    } else {
+      var currentDriver = availableNearByDriverList![0];
+      //send notification to this current driver
+
+      sendNotification(currentDriver);
+
+      availableNearByDriverList!.removeAt(0);
     }
   }
 
-  bool _hasStartedGeofireListener = false;
+  sendNotification(NearByDriver currentDriver) {
+    DatabaseReference currentDriverRef = FirebaseDatabase.instance
+        .ref()
+        .child('drivers')
+        .child(currentDriver.uidDriver.toString())
+        .child('newTripStatus');
 
-  @override
-  void initState() {
-    super.initState();
-    AuthController.getCurrentUserInfo();
-    WidgetsBinding.instance.addObserver(this); // Add observer for app lifecycle
-    _initializeGeofireListener();
+    currentDriverRef.set(tripRef!.key);
+
+    //get current driver token
+    DatabaseReference tokenRef = FirebaseDatabase.instance
+        .ref()
+        .child('drivers')
+        .child(currentDriver.uidDriver.toString())
+        .child('token');
+
+    tokenRef.once().then((dataSnapshot) {
+      if (dataSnapshot.snapshot.value != null) {
+        String token = dataSnapshot.snapshot.value.toString();
+
+        //send notification
+        PushNotificationController.sendNotificationToSelectedDriver(
+            token, context, tripRef!.key.toString());
+      } else {
+        return;
+      }
+    });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _initializeGeofireListener();
-  }
-
-  void _initializeGeofireListener() {
-    final geofireProvider =
-        Provider.of<GeofireProvider>(context, listen: false);
-    final userLocation = _locationController.userCurrentPosition;
-
-    if (userLocation != null && !_hasStartedGeofireListener) {
-      startGeofireListener();
-      _hasStartedGeofireListener = true; // Ensure listener is only started once
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _initializeGeofireListener(); // Reinitialize on resume
-    }
-  }
+  bool isDriverMode = false;
 
   @override
   Widget build(BuildContext context) {
-    // final user = Provider.of<UserProvider>(context).user;
     createMarker();
     return Scaffold(
       key: scaffoldKey,
@@ -235,7 +417,49 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              )
+              ),
+              ListTile(
+                leading: Icon(
+                  isDriverMode ? OMIcons.driveEta : OMIcons.person,
+                ),
+                title: Text(
+                  isDriverMode
+                      ? 'Switch to User Mode'
+                      : 'Switch to Driver Mode',
+                  style: GoogleFonts.montserrat(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onTap: () {
+                  setState(() {
+                    isDriverMode = !isDriverMode;
+                  });
+
+                  // Show feedback
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isDriverMode
+                            ? 'Switched to Driver Mode'
+                            : 'Switched to User Mode',
+                        style: TextStyle(fontSize: 16.0),
+                      ),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+
+                  // Optionally, navigate to the relevant screen
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => isDriverMode
+                          ? DriverMainScreen() // Navigate to driver main screen
+                          : MainPage(), // Navigate to user main screen (create this screen)
+                    ),
+                    (route) => false,
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -252,15 +476,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
             mapType: MapType.terrain,
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
-            onMapCreated: (GoogleMapController mapController) async {
-              _mapController = mapController;
-              _controller.complete(_mapController);
-              _locationController.setGoogleMapController(_mapController!);
+            onMapCreated: (GoogleMapController mapController) {
+              _controllerGoogleMap = mapController;
+              _googleMapController.complete(_controllerGoogleMap);
+              _getCurrentLocation();
 
-              // Ensure getCurrentUserLocation completes before starting GeoFire listener
-              await _locationController.getCurrentUserLocation(context);
-
-              startGeofireListener();
               setState(() {
                 bottomPadding = 299;
               });
@@ -335,6 +555,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       const SizedBox(
                         height: 5,
@@ -454,35 +675,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       const SizedBox(
                         height: 16,
                       ),
-                      Row(
-                        children: [
-                          const Icon(
-                            OMIcons.work,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(
-                            width: 12,
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Add Work',
-                                style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                'Your Office address',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 12,
-                                  letterSpacing: 0.8,
-                                ),
-                              )
-                            ],
-                          )
-                        ],
-                      )
                     ],
                   ),
                 ),
@@ -523,9 +715,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         child: Container(
                           width: MediaQuery.of(context).size.width,
                           decoration: BoxDecoration(
-                            color: Colors.blueAccent.shade100.withOpacity(
-                              0.9,
-                            ),
+                            color: Color(0xFFe3fded),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Padding(
@@ -612,7 +802,17 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       ),
                       InkWell(
                         onTap: () {
+                          setState(() {
+                            appState = 'REQUESTING';
+                          });
+
                           showRequestingSheet();
+
+                          availableNearByDriverList =
+                              ManageDriverMethods.nearByDriverList;
+
+                          //search driver
+                          searchDriver();
                         },
                         child: Container(
                           width: 319,
@@ -705,10 +905,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         ),
                       ),
                       child: IconButton(
-                        onPressed: () {
-                          cancelRequest();
-                          resetApp();
-                        },
+                        onPressed: () {},
                         icon: const Icon(Icons.close, size: 25),
                       ),
                     ),
@@ -716,10 +913,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       height: 10,
                     ),
                     InkWell(
-                      onTap: () {
-                        cancelRequest();
-                        resetApp();
-                      },
+                      onTap: () {},
                       child: Text(
                         'Cancel ride',
                         style: GoogleFonts.montserrat(
@@ -797,7 +991,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
     setState(() {
       Polyline polyline = Polyline(
-        polylineId: PolylineId('polyId'),
+        polylineId: const PolylineId('polyId'),
         color: Colors.pink,
         points: polylineCoordinates,
         jointType: JointType.round,
@@ -834,56 +1028,29 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       bounds =
           LatLngBounds(southwest: pickUpLatlng, northeast: destinationLatlng);
     }
-    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 70));
+    _controllerGoogleMap!
+        .animateCamera(CameraUpdate.newLatLngBounds(bounds, 70));
 
-    Marker pickUpMarker = Marker(
-        markerId: MarkerId("pickUp"),
+    Marker pickupMarker = Marker(
+        markerId: const MarkerId('pickupmaker'),
         position: pickUpLatlng,
         icon: BitmapDescriptor.defaultMarkerWithHue(
-          BitmapDescriptor.hueBlue,
+          BitmapDescriptor.hueGreen,
         ),
-        infoWindow: InfoWindow(
-          title: pickup.placeName,
-          snippet: "My Location",
-        ));
-
+        infoWindow: InfoWindow(title: pickup.placeName, snippet: 'Location'));
     Marker destinationMarker = Marker(
-        markerId: const MarkerId("destination"),
-        position: destinationLatlng,
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          BitmapDescriptor.hueRed,
-        ),
-        infoWindow: InfoWindow(
-          title: destination.placeName,
-          snippet: "Desitination",
-        ));
+      markerId: const MarkerId('destinationMarker'),
+      position: destinationLatlng,
+      icon: BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueBlue,
+      ),
+      infoWindow:
+          InfoWindow(title: destination.placeName, snippet: 'destination'),
+    );
 
     setState(() {
-      _markers.add(pickUpMarker);
+      _markers.add(pickupMarker);
       _markers.add(destinationMarker);
-    });
-
-    Circle pickupCircle = Circle(
-      circleId: const CircleId('pickUp'),
-      strokeColor: Colors.blue,
-      radius: 12,
-      strokeWidth: 3,
-      center: pickUpLatlng,
-      fillColor: Colors.blue,
-    );
-
-    Circle destinationCircle = Circle(
-      circleId: const CircleId('pickUp'),
-      strokeColor: Colors.blue,
-      radius: 12,
-      strokeWidth: 3,
-      center: destinationLatlng,
-      fillColor: Colors.purple,
-    );
-
-    setState(() {
-      _circle.add(pickupCircle);
-      _circle.add(destinationCircle);
     });
   }
 
@@ -895,128 +1062,15 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       _circle.clear();
       rideDetailSheet = 0;
       requestSheetHeight = 0;
-      searchDetailSheet = (Platform.isAndroid) ? 300 : 275;
+      searchDetailSheet = (Platform.isAndroid) ? 275 : 300;
       bottomPadding = (Platform.isAndroid) ? 280 : 270;
       drawerCanOpen = true;
-    });
-  }
 
-  void createRideRequest() async {
-    rideRef = FirebaseDatabase.instance.ref().child('rideRequest').push();
-
-    final pickUp = Provider.of<AppData>(context, listen: false).addressModel;
-    final destination =
-        Provider.of<AppData>(context, listen: false).destinationAddress;
-    Map pickUpMap = {
-      'latitude': pickUp!.latitude.toString(),
-      'longitude': pickUp.longitude.toString(),
-    };
-    Map destinationMap = {
-      'latitude': destination!.latitude.toString(),
-      'longitude': destination.longitude.toString(),
-    };
-    Map rideMap = {
-      'created_at': DateTime.now().toString(),
-      'riderName': userInfo!.fullName,
-      'pickUpAddress': pickUp.placeName,
-      'destinationAddress': destination.placeName,
-      'location': pickUpMap,
-      'destination': destinationMap,
-      'payment': "cash",
-      'driver': "waiting",
-    };
-
-    await rideRef!.set(rideMap);
-  }
-
-  void cancelRequest() async {
-    await rideRef!.remove();
-  }
-
-  void startGeofireListener() async {
-    Platform.isAndroid
-        ? await Firebase.initializeApp(
-            options: const FirebaseOptions(
-              apiKey: "AIzaSyB_SdqRX8aYQ6LgUneHgQ4Nudw2EIIE-uc",
-              appId: '1:107113386007:android:b6faa5a9aa0f3b41318c52',
-              messagingSenderId: '107113386007',
-              projectId: 'uber-app-439a2',
-              storageBucket: "uber-app-439a2.appspot.com",
-            ),
-          )
-        : await Firebase.initializeApp();
-    Geofire.initialize('driverAvailable');
-    print('GeoFire initialized with collection: driverAvailable');
-    Geofire.queryAtLocation(_locationController.userCurrentPosition!.latitude,
-            _locationController.userCurrentPosition!.longitude, 20)
-        ?.listen((map) {
-      print('Listener triggered');
-      if (map != null) {
-        print('Entering data');
-        print(map);
-        var callBack = map['callBack'];
-
-        switch (callBack) {
-          case Geofire.onKeyEntered:
-            print('Key entered');
-            NearByDriver nearbyDriver = NearByDriver();
-            nearbyDriver.key = map['key'];
-            nearbyDriver.latitude = map['latitude'];
-            nearbyDriver.longitude = map['longitude'];
-            Firehelpercontroller.nearbyDriverList.add(nearbyDriver);
-            if (nearByDriverKeyLoaded) {
-              updateDriverOnMap();
-            }
-            break;
-
-          case Geofire.onKeyExited:
-            print('Key exited');
-
-            Firehelpercontroller.removeFromList(map['key']);
-            updateDriverOnMap();
-            break;
-
-          case Geofire.onKeyMoved:
-            print('Key moved');
-            NearByDriver nearbyDriver = NearByDriver();
-            nearbyDriver.key = map['key'];
-            nearbyDriver.latitude = map['latitude'];
-            nearbyDriver.longitude = map['longitude'];
-            Firehelpercontroller.updateNearByLocation(nearbyDriver);
-            updateDriverOnMap();
-            break;
-
-          case Geofire.onGeoQueryReady:
-            nearByDriverKeyLoaded = true;
-            updateDriverOnMap();
-            break;
-        }
-
-        setState(() {});
-      } else {
-        print('Data not received');
-      }
-    });
-  }
-
-  void updateDriverOnMap() {
-    setState(() {
-      _markers.clear();
-    });
-
-    Set<Marker> tempMarkers = Set<Marker>();
-    for (NearByDriver driver in Firehelpercontroller.nearbyDriverList) {
-      LatLng driverPosition = LatLng(driver.latitude!, driver.longitude!);
-      Marker thisMarker = Marker(
-        markerId: MarkerId("${driver.key}"),
-        position: driverPosition,
-        icon: nearByCar!,
-        rotation: PlacesController.generateRandomNumber(360),
-      );
-      tempMarkers.add(thisMarker);
-    }
-    setState(() {
-      _markers = tempMarkers;
+      status = '';
+      driverFullName = '';
+      driverPhoneNumber = '';
+      driverCarDetails = '';
+      tripStatusDisplay = 'Driver is Arriving';
     });
   }
 }

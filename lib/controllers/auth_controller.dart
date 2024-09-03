@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:wahid_uber_app/global_variables.dart';
 import 'package:wahid_uber_app/views/screens/bottomNavigation_Screens/main_page.dart';
 import 'package:wahid_uber_app/models/user.dart'
@@ -33,6 +34,18 @@ class AuthController {
 
       await userRef.set(userMap);
 
+      // Welcome message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🎉 Welcome aboard, $fullName! Your journey starts here!',
+            style: GoogleFonts.montserrat(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigate to the main page
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const MainPage()),
@@ -40,42 +53,48 @@ class AuthController {
       );
     } catch (e) {
       print("Sign-up error: $e");
+
+      // Error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🚨 Oops! Something went wrong. Please try signing up again.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.montserrat(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   static Future<void> getCurrentUserInfo() async {
-    // Get the current user from FirebaseAuth
-   currentUser = FirebaseAuth.instance.currentUser;
+    currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser != null) {
-      // Get the user ID from the current user
       String userId = currentUser!.uid;
-
-      // Reference to the user node in the Firebase Realtime Database
       DatabaseReference userRef =
           FirebaseDatabase.instance.ref().child('users/$userId');
 
       try {
-        // Retrieve the data from the database
         final DatabaseEvent event = await userRef.once();
         final DataSnapshot snapshot = event.snapshot;
 
         if (snapshot.exists) {
-          // Convert snapshot value to a map and create a User instance
           Map<String, dynamic> userData =
               Map<String, dynamic>.from(snapshot.value as Map);
-           userInfo = userModel.User.fromMap(userData);
+          userInfo = userModel.User.fromMap(userData);
 
-          // Do something with the User instance, e.g., print it or use it in your app
-          print('User data: ${userInfo!.fullName}');
+          // Success message
+          print('🌟 User data successfully retrieved: ${userInfo!.fullName}');
         } else {
-          print('No data available for user');
+          print('⚠️ No data available for this user.');
         }
       } catch (e) {
-        print('Error retrieving user data: $e');
+        print('❌ Error retrieving user data: $e');
       }
     } else {
-      print('No user is currently signed in');
+      print('⚠️ No user is currently signed in.');
     }
   }
 
@@ -90,7 +109,19 @@ class AuthController {
         password: password,
       );
 
-      // Optionally, navigate to a different screen or update the UI
+      // Welcome back message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '👋 Welcome back! Let\'s get you where you need to go!',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.montserrat(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      // Navigate to the main page
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const MainPage()),
@@ -98,6 +129,18 @@ class AuthController {
       );
     } catch (e) {
       print("Sign-in error: $e");
+
+      // Error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🚨 Uh-oh! There was a problem signing you in. Please check your credentials and try again.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.montserrat(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }
