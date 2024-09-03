@@ -87,39 +87,43 @@ class AuthController {
         password: password,
       );
 
-      // Retrieve user type from Firebase Realtime Database
+      // Determine the correct collection based on the user type
       DatabaseReference userRef =
           _firebaseDatabase.ref().child('users/${credential.user!.uid}');
-      DataSnapshot snapshot = (await userRef.once()) as DataSnapshot;
+      DataSnapshot snapshot = await userRef.get();
 
       if (!snapshot.exists) {
         // If not found in users, check the drivers collection
-        userRef = _firebaseDatabase.ref().child('drivers/${credential.user!.uid}');
-        snapshot = (await userRef.once()) as DataSnapshot;
+        userRef =
+            _firebaseDatabase.ref().child('drivers/${credential.user!.uid}');
+        snapshot = await userRef.get();
       }
 
-      Map<String, dynamic> userData = Map<String, dynamic>.from(snapshot.value as Map);
-      userInfo = userModel.User.fromMap(userData);
-      String userType = userInfo!.userType;
+      if (snapshot.exists && snapshot.value is Map) {
+        Map<String, dynamic> userData =
+            Map<String, dynamic>.from(snapshot.value as Map);
+        userInfo = userModel.User.fromMap(userData);
+        String userType = userInfo!.userType;
 
-      // Welcome back message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '👋 Welcome back! Let\'s get you where you need to go!',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.montserrat(fontSize: 16.0),
+        // Welcome back message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '👋 Welcome back! Let\'s get you where you need to go!',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.montserrat(fontSize: 16.0),
+            ),
+            backgroundColor: Colors.blue,
           ),
-          backgroundColor: Colors.blue,
-        ),
-      );
+        );
 
-      // Navigate to the appropriate main page based on user type
-      _navigateToMainPage(context, userType);
+        // Navigate to the appropriate main page based on user type
+        _navigateToMainPage(context, userType);
+      } else {
+        throw Exception("User data not found");
+      }
     } catch (e) {
       print("Sign-in error: $e");
-
-      // Error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -135,49 +139,66 @@ class AuthController {
 
   Future<void> switchUserType(BuildContext context) async {
     String userId = _auth.currentUser!.uid;
-    DatabaseReference userRef;
+    DatabaseReference oldRef;
+    DatabaseReference newRef;
 
-    // Check which collection the user belongs to and switch accordingly
+    // Determine the current collection based on the user type
     if (userInfo!.userType == 'normal') {
-      userRef = _firebaseDatabase.ref().child('users/$userId');
+      oldRef = _firebaseDatabase.ref().child('users/$userId');
+      newRef = _firebaseDatabase.ref().child('drivers/$userId');
     } else {
-      userRef = _firebaseDatabase.ref().child('drivers/$userId');
+      oldRef = _firebaseDatabase.ref().child('drivers/$userId');
+      newRef = _firebaseDatabase.ref().child('users/$userId');
     }
 
-    // Toggle between normal and driver
+    // Toggle between 'normal' and 'driver'
     String newUserType = userInfo!.userType == 'normal' ? 'driver' : 'normal';
 
-    await userRef.update({
-      'userType': newUserType,
-    });
+    try {
+      // Update the userType in the old collection
+      await oldRef.update({'userType': newUserType});
 
-    // Move the user to the new collection if switching types
-    if (newUserType == 'driver') {
-      DatabaseReference newRef = _firebaseDatabase.ref().child('drivers/$userId');
-      await newRef.set(userInfo!.toMap()); // Move data to drivers collection
-      await userRef.remove(); // Remove data from users collection
-    } else {
-      DatabaseReference newRef = _firebaseDatabase.ref().child('users/$userId');
-      await newRef.set(userInfo!.toMap()); // Move data to users collection
-      await userRef.remove(); // Remove data from drivers collection
-    }
+      // Move the user to the new collection
+      await newRef.set(userInfo!.toMap()); // Move data to the new collection
+      await oldRef.remove(); // Remove data from the old collection
 
-    // Update the local userInfo variable
-    userInfo!.userType = newUserType;
+      // Fetch the updated data from the new collection
+      DataSnapshot snapshot = await newRef.get();
+      if (snapshot.exists && snapshot.value is Map) {
+        Map<String, dynamic> updatedUserData =
+            Map<String, dynamic>.from(snapshot.value as Map);
 
-    // Display a message to the user
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '🚗 You are now in ${newUserType == 'driver' ? 'Driver' : 'User'} mode!',
-          style: GoogleFonts.montserrat(fontSize: 16.0),
+        // Update the local userInfo object
+        userInfo = userModel.User.fromMap(updatedUserData);
+
+        // Display a message to the user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '🚗 You are now in ${newUserType == 'driver' ? 'Driver' : 'User'} mode!',
+              style: GoogleFonts.montserrat(fontSize: 16.0),
+            ),
+            backgroundColor: Colors.blue,
+          ),
+        );
+
+        // Navigate to the appropriate main page
+        _navigateToMainPage(context, newUserType);
+      } else {
+        throw Exception("User data not found after switch");
+      }
+    } catch (e) {
+      print("Error switching user type: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🚨 Error switching user type. Please try again.',
+            style: GoogleFonts.montserrat(fontSize: 16.0),
+          ),
+          backgroundColor: Colors.red,
         ),
-        backgroundColor: Colors.blue,
-      ),
-    );
-
-    // Navigate to the appropriate main page
-    _navigateToMainPage(context, newUserType);
+      );
+    }
   }
 
   void _navigateToMainPage(BuildContext context, String userType) {

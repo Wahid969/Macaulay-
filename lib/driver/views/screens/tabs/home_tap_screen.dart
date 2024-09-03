@@ -92,10 +92,10 @@ class _HomeTapScreenState extends State<HomeTapScreen> {
     newTripRequestRef = null;
   }
 
-  initializePushNotification() {
+  initializePushNotification() async {
     PushNotification pushNotification = PushNotification();
-    pushNotification.generateToken();
-    pushNotification.startListeningLocation(context);
+    await pushNotification.generateToken();
+    await pushNotification.startListeningLocation(context);
   }
 
   @override

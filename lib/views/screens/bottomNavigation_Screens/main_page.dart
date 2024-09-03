@@ -116,6 +116,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     // AuthController.getCurrentUserInfo();
+    super.initState();
+    isDriverMode =
+        userInfo?.userType == 'driver'; // Initialize based on current user type
     _getCurrentLocation();
   }
 
@@ -308,8 +311,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   }
 
   final AuthController _authController = AuthController();
-  bool isDriverMode =
-      userInfo?.userType == 'driver'; // Initial mode based on current user type
+  late bool isDriverMode;
 
   @override
   Widget build(BuildContext context) {
@@ -433,26 +435,32 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                   ),
                 ),
                 onTap: () async {
+                  print("Switching user type...");
                   // Call the switchUserType method from AuthController
                   await _authController.switchUserType(context);
 
-                  // Update the mode in the UI
-                  setState(() {
-                    isDriverMode = !isDriverMode;
-                  });
+                  // Fetch updated userInfo and update the mode in the UI
+                  bool updatedIsDriverMode = userInfo?.userType == 'driver';
+                  if (updatedIsDriverMode != isDriverMode) {
+                    setState(() {
+                      isDriverMode = updatedIsDriverMode;
+                    });
 
-                  // Show feedback
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isDriverMode
-                            ? 'Switched to Driver Mode'
-                            : 'Switched to User Mode',
-                        style: const TextStyle(fontSize: 16.0),
+                    // Show feedback
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isDriverMode
+                              ? 'Switched to Driver Mode'
+                              : 'Switched to User Mode',
+                          style: const TextStyle(fontSize: 16.0),
+                        ),
+                        backgroundColor: Colors.blue,
                       ),
-                      backgroundColor: Colors.blue,
-                    ),
-                  );
+                    );
+                  } else {
+                    print("No change in user mode.");
+                  }
                 },
               ),
             ],
